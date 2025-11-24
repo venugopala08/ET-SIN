@@ -18,20 +18,19 @@ export async function GET(request: NextRequest) {
     );
     
     // Query 2: Get one page of anomalies, WITH user data
-    // --- THIS QUERY IS FIXED with GROUP BY d.id ---
+    // --- THIS QUERY IS FIXED with a correct GROUP BY clause ---
     const dataQuery = db.query(
       `
       SELECT
         d.id, d.rrno, d.record_date, d."Consumption", d."Voltage",
         d.confidence, d.status, d.anomaly_reason,
-        -- This aggregate grabs the first matching user's name/address
         (array_agg(u.name))[1] AS name,
         (array_agg(u.address))[1] AS address,
         (array_agg(u.address))[1] AS village 
       FROM data_records d
       LEFT JOIN users u ON d.rrno = u.rrno
       WHERE d.is_anomaly = true
-      GROUP BY d.id  -- This ensures each anomaly ID is unique
+      GROUP BY d.id, d.rrno, d.record_date, d."Consumption", d."Voltage", d.confidence, d.status, d.anomaly_reason
       ORDER BY d.record_date DESC 
       LIMIT $1 OFFSET $2
       `,

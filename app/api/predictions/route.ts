@@ -1,32 +1,27 @@
-// FILE: app/api/predictions/route.ts
 import { NextResponse, type NextRequest } from 'next/server';
 import db from '@/lib/db';
 
 const RECORDS_PER_PAGE = 20;
 
-// --- THIS IS NEW: A helper function to get the *reason* ---
-// It returns a string like "Low Voltage" or "ML Prediction"
 function getAnomalyReason(
-  record: any, 
-  rules: any, 
+  record: any,
+  rules: any,
   mlFlagged: boolean
 ): string | null {
-  
+
   if (rules.enabled) {
     const voltage = parseFloat(record.Voltage);
     const powerFactor = parseFloat(record["Power Factor"]);
     const consumption = parseFloat(record.Consumption);
     const rollingAvg = parseFloat(record.rolling_avg);
-    const billing = consumption * 10; // Simple billing estimation
 
     // Check rules in order of priority
     if (voltage < rules.voltage_min) return "Low Voltage";
     if (voltage > rules.voltage_max) return "High Voltage";
     if (powerFactor < rules.power_factor_min) return "Low Power Factor";
     if (rollingAvg > 0 && (consumption > (rollingAvg * rules.spike_multiplier))) return "Consumption Spike";
-    if (billing > rules.billing_threshold) return "High Billing";
   }
-  
+
   // If no rules were broken, but the ML model flagged it
   if (mlFlagged) {
     return "ML Prediction";
@@ -36,7 +31,7 @@ function getAnomalyReason(
   return null;
 }
 
-// GET function (stays the same)
+// GET function
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -66,7 +61,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST function (is UPDATED)
+// POST function
 export async function POST(request: Request) {
   try {
     
@@ -80,7 +75,6 @@ export async function POST(request: Request) {
       voltage_min: parseFloat(rulesResponse.rows[0].voltage_min),
       voltage_max: parseFloat(rulesResponse.rows[0].voltage_max),
       power_factor_min: parseFloat(rulesResponse.rows[0].power_factor_min),
-      billing_threshold: parseFloat(rulesResponse.rows[0].billing_threshold),
       enabled: rulesResponse.rows[0].enabled,
     };
 
@@ -91,7 +85,7 @@ export async function POST(request: Request) {
         "Bill_to_usage_ratio", "delta_units", "rolling_avg", "rolling_min", 
         "rolling_max", "rolling_std", "interaction_billing_pf", "month_sin", "month_cos"
        FROM data_records 
-       WHERE is_anomaly = FALSE OR anomaly_reason IS NULL` // <-- Get records that need checking
+       WHERE is_anomaly = FALSE OR anomaly_reason IS NULL`
     );
 
     if (!dataToPredict || dataToPredict.length === 0) {
@@ -122,21 +116,16 @@ export async function POST(request: Request) {
       const mlFlagged = mlPrediction?.is_anomaly || false;
       const mlConfidence = mlPrediction?.confidence || 0;
       
-      // --- THIS IS THE NEW LOGIC ---
-      // Get the specific reason (e.g., "Low Voltage", "ML Prediction")
       const reason = getAnomalyReason(record, rules, mlFlagged);
 
-      const final_is_anomaly = (reason !== null); // It's an anomaly if there's any reason
+      const final_is_anomaly = (reason !== null);
       
       if (final_is_anomaly) {
         anomalies_found++;
       }
       
-      // If rule-flagged, set confidence to 1.0, otherwise use ML confidence
       const final_confidence = (reason !== null && reason !== 'ML Prediction') ? 1.0 : mlConfidence;
 
-      // --- THIS QUERY IS UPDATED ---
-      // We now save the 'reason' in the 'anomaly_reason' column
       return db.query(
         `UPDATE data_records 
          SET is_anomaly = $1, confidence = $2, anomaly_reason = $3 

@@ -1,7 +1,6 @@
-// FILE: app/admin/rules/page.tsx
 "use client"
 
-import { useState, useEffect } from "react" // Import useEffect
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -9,35 +8,32 @@ import { Slider } from "@/components/ui/slider"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { Settings, Save, Sliders, Loader2 } from 'lucide-react' // Import Loader2
+import { Settings, Save, Sliders, Loader2 } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
-import { Skeleton } from "@/components/ui/skeleton" // <-- ADD THIS LINE
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface RuleConfig {
   spike_multiplier: number
   voltage_min: number
   voltage_max: number
   power_factor_min: number
-  billing_threshold: number
   enabled: boolean
 }
 
 export default function RulesPage() {
   const { toast } = useToast()
-  // Set initial state with defaults, they will be overwritten
+  
   const [ruleConfig, setRuleConfig] = useState<RuleConfig>({
     spike_multiplier: 2.0,
     voltage_min: 200,
     voltage_max: 250,
     power_factor_min: 0.7,
-    billing_threshold: 5000,
     enabled: true,
   })
   
-  const [loading, setLoading] = useState(true) // For page load
-  const [saving, setSaving] = useState(false) // For save button
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
-  // --- ADD useEffect TO FETCH RULES ON LOAD ---
   useEffect(() => {
     async function fetchRules() {
       setLoading(true);
@@ -47,13 +43,12 @@ export default function RulesPage() {
           throw new Error('Failed to fetch rules');
         }
         const data = await response.json();
-        // Convert string values from DB to numbers
+        
         setRuleConfig({
           spike_multiplier: parseFloat(data.spike_multiplier),
           voltage_min: parseFloat(data.voltage_min),
           voltage_max: parseFloat(data.voltage_max),
           power_factor_min: parseFloat(data.power_factor_min),
-          billing_threshold: parseFloat(data.billing_threshold),
           enabled: data.enabled,
         });
       } catch (error: any) {
@@ -63,9 +58,8 @@ export default function RulesPage() {
       }
     }
     fetchRules();
-  }, [toast]); // Run once on page load
+  }, [toast]);
 
-  // --- UPDATE handleRuleUpdate TO POST TO API ---
   const handleRuleUpdate = async () => {
     setSaving(true);
     try {
@@ -94,7 +88,6 @@ export default function RulesPage() {
     }
   }
 
-  // Helper to update state for sliders (which return an array)
   const handleSliderChange = (key: keyof RuleConfig, value: number[]) => {
     setRuleConfig((prev) => ({ ...prev, [key]: value[0] }));
   };
@@ -115,7 +108,6 @@ export default function RulesPage() {
           <CardDescription>Configure detection rules and thresholds</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* --- ADD LOADING STATE SKELETON --- */}
           {loading ? (
             <div className="space-y-4">
               <Skeleton className="h-8 w-1/3" />
@@ -191,21 +183,6 @@ export default function RulesPage() {
                   />
                   <p className="text-sm text-muted-foreground">
                     Flag power factor below {ruleConfig.power_factor_min.toFixed(2)}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Billing Threshold: ₹{ruleConfig.billing_threshold}</Label>
-                  <Slider
-                    value={[ruleConfig.billing_threshold]}
-                    onValueChange={(val) => handleSliderChange("billing_threshold", val)}
-                    max={10000}
-                    min={2000}
-                    step={500}
-                    className="w-full"
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Flag unusual billing amounts above ₹{ruleConfig.billing_threshold}
                   </p>
                 </div>
               </div>

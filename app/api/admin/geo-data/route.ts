@@ -3,37 +3,36 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
-// We'll hard-code the coordinates here and merge them with live DB data.
-// These are from your 'app/admin/geo/page.tsx' file.
+// These are the coordinates for your villages.
+// I've added Aversa based on your description.
 const villageCoordinates: { [key: string]: [number, number] } = {
   "Ankola": [74.3040, 14.6620],
   "Belambar": [74.3910, 14.7560],
   "Hankon": [74.3290, 14.7850],
-  // You can add more villages/addresses here as needed
+  "Aversa": [74.3430, 14.7070], // Added Aversa
+  // Add other villages from your dataset here
 };
 
 export async function GET() {
   try {
-    // --- THIS QUERY IS NOW FIXED ---
-    // 1. Join data_records with users on rrno to get the address.
-    // 2. Group by the address (which we are treating as the village).
+    // --- THIS IS THE NEW, CORRECTED QUERY ---
+    // It now groups by the 'village' column in the data_records table itself,
+    // instead of trying to join with the 'users' table.
     const query = `
       SELECT
-        u.address AS village,
-        COUNT(d.id) AS total_records,
-        COUNT(d.id) FILTER (WHERE d.is_anomaly = true) AS total_anomalies
-      FROM data_records d
-      JOIN users u ON d.rrno = u.rrno
-      WHERE u.address IS NOT NULL
-      GROUP BY u.address;
+        village,
+        COUNT(*) AS total_records,
+        COUNT(*) FILTER (WHERE is_anomaly = true) AS total_anomalies
+      FROM data_records
+      WHERE village IS NOT NULL
+      GROUP BY village;
     `;
     
     const { rows } = await db.query(query);
 
-    // Now, merge the query results with our hard-coded coordinates
+    // Merge query results with our hard-coded coordinates
     const geoData = rows.map(row => {
-      // The 'village' field from our query is actually the 'address'
-      const villageName = row.village;
+      const villageName = row.village; // e.g., "Aversa"
       const coords = villageCoordinates[villageName];
       
       const totalRecords = parseInt(row.total_records, 10);
@@ -44,15 +43,14 @@ export async function GET() {
         type: "Feature",
         properties: {
           name: villageName,
-          users: totalRecords, // Using total records
+          users: totalRecords,
           anomalies: totalAnomalies,
           theftPct: theftPct,
-          top: theftPct > 0.1 ? "Consumption Spike" : "Power Factor Issue", // Mock 'top' anomaly
         },
         geometry: {
           type: "Point",
-          // Default to Ankola if address doesn't match our hard-coded list
-          coordinates: coords || [74.30, 14.66] 
+          // Default to Ankola if a village in your data isn't in our hard-coded list
+          coordinates: coords || [74.3040, 14.6620] 
         }
       };
     });
