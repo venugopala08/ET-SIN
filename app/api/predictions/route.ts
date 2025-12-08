@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
         d.is_anomaly, 
         d.confidence, 
         d.anomaly_reason,
-        COALESCE(u.address, d.village, 'Unknown') as village
+        COALESCE(u.address, 'Unknown') as village
        FROM data_records d
        LEFT JOIN users u ON d.rrno = u.rrno
        ORDER BY d.record_date DESC 

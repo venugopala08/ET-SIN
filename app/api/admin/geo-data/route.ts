@@ -17,14 +17,14 @@ const villageCoordinates: { [key: string]: [number, number] } = {
 
 export async function GET() {
   try {
-    // Query: Group by village (Case insensitive grouping is safer)
+    // Query: Group by village name derived from users.address (fallback to 'Unknown')
     const query = `
       SELECT
-        village,
+        COALESCE(u.address, 'Unknown') AS village,
         COUNT(*) AS total_records,
-        COUNT(*) FILTER (WHERE is_anomaly = true) AS total_anomalies
-      FROM data_records
-      WHERE village IS NOT NULL
+        COUNT(*) FILTER (WHERE d.is_anomaly = true) AS total_anomalies
+      FROM data_records d
+      LEFT JOIN users u ON d.rrno = u.rrno
       GROUP BY village;
     `;
     

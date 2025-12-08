@@ -3,16 +3,28 @@ import db from '@/lib/db';
 
 export async function GET() {
   try {
+
     const query = `
-      SELECT c.id, c.subject, c.description, c.status, c.created_at, u.name as user_name, u.email as user_email
+      SELECT 
+        c.id,
+        c.user_id,
+        c.subject,
+        c.description,
+        c.status,
+        c.created_at,
+        c.rrno,
+        u.name AS name,
+        u.email AS email
       FROM complaints c
       JOIN users u ON c.user_id = u.id
       ORDER BY c.created_at DESC
     `;
     const { rows } = await db.query(query);
-    
-    return NextResponse.json(rows);
+
+    // Wrap rows in an object so the admin UI can read data.complaints
+    return NextResponse.json({ complaints: rows });
   } catch (error) {
+
     console.error('API Error fetching complaints:', error);
     return NextResponse.json({ error: 'Failed to fetch complaints' }, { status: 500 });
   }

@@ -17,21 +17,19 @@ export async function GET(request: NextRequest) {
     );
     
     // Query 2: Get anomalies
-    // --- FIX IS HERE ---
-    // We switched the order: COALESCE(d.village, u.address...)
-    // This forces it to use the CSV village (e.g. Aversa) first.
+    // Use users.address as the location source; data_records has no village column.
     const dataQuery = db.query(
       `
       SELECT
         d.id, d.rrno, d.record_date, d."Consumption", d."Voltage",
         d.confidence, d.status, d.anomaly_reason,
         COALESCE((array_agg(u.name))[1], 'Unregistered Consumer') AS name,
-        COALESCE(d.village, (array_agg(u.address))[1], 'Unknown Location') AS address, 
-        COALESCE(d.village, (array_agg(u.address))[1], 'Unknown Village') AS village
+        COALESCE((array_agg(u.address))[1], 'Unknown Location') AS address, 
+        COALESCE((array_agg(u.address))[1], 'Unknown Village') AS village
       FROM data_records d
       LEFT JOIN users u ON d.rrno = u.rrno
       WHERE d.is_anomaly = true
-      GROUP BY d.id, d.rrno, d.record_date, d."Consumption", d."Voltage", d.confidence, d.status, d.anomaly_reason, d.village
+      GROUP BY d.id, d.rrno, d.record_date, d."Consumption", d."Voltage", d.confidence, d.status, d.anomaly_reason
       ORDER BY d.record_date DESC 
       LIMIT $1 OFFSET $2
       `,
