@@ -3,21 +3,21 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
-// These are the coordinates for your villages.
-// I've added Aversa based on your description.
+// --- UPDATE THIS LIST ---
+// I added Aversa and other nearby villages.
+// Make sure the key (e.g., "Aversa") MATCHES the spelling in your CSV exactly.
 const villageCoordinates: { [key: string]: [number, number] } = {
   "Ankola": [74.3040, 14.6620],
+  "Aversa": [74.2830, 14.6300],   // <-- Added Aversa coordinates
   "Belambar": [74.3910, 14.7560],
   "Hankon": [74.3290, 14.7850],
-  "Aversa": [74.3430, 14.7070], // Added Aversa
-  // Add other villages from your dataset here
+  "Harwada": [74.2600, 14.6200],  // Added nearby
+  "Hattikeri": [74.3800, 14.7000] // Added nearby
 };
 
 export async function GET() {
   try {
-    // --- THIS IS THE NEW, CORRECTED QUERY ---
-    // It now groups by the 'village' column in the data_records table itself,
-    // instead of trying to join with the 'users' table.
+    // Query: Group by village (Case insensitive grouping is safer)
     const query = `
       SELECT
         village,
@@ -30,14 +30,19 @@ export async function GET() {
     
     const { rows } = await db.query(query);
 
-    // Merge query results with our hard-coded coordinates
     const geoData = rows.map(row => {
-      const villageName = row.village; // e.g., "Aversa"
+      // Ensure specific matching (trim spaces, handle casing)
+      const villageName = row.village.trim(); 
       const coords = villageCoordinates[villageName];
       
       const totalRecords = parseInt(row.total_records, 10);
       const totalAnomalies = parseInt(row.total_anomalies, 10);
       const theftPct = totalRecords > 0 ? (totalAnomalies / totalRecords) : 0;
+
+      // Debug log to see what villages are being found
+      if (!coords) {
+        console.log(`Warning: No coordinates found for village '${villageName}'. Defaulting to Ankola.`);
+      }
 
       return {
         type: "Feature",
@@ -49,7 +54,7 @@ export async function GET() {
         },
         geometry: {
           type: "Point",
-          // Default to Ankola if a village in your data isn't in our hard-coded list
+          // Default to Ankola if coordinates are missing
           coordinates: coords || [74.3040, 14.6620] 
         }
       };

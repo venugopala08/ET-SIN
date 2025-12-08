@@ -1,20 +1,23 @@
-// FILE: app/api/user/[id]/usage/route.ts
-
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  // Fix 1: Change the type of params to Promise
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Fix 2: Await the params before using them
+    const params = await props.params;
     const userId = params.id;
 
     // 1. Get the user's RRNO first
     const userQuery = await db.query('SELECT rrno FROM users WHERE id = $1', [userId]);
+    
     if (userQuery.rows.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    
     const rrno = userQuery.rows[0].rrno;
 
     // 2. Run the LATEST record and 7-DAY chart queries IN PARALLEL

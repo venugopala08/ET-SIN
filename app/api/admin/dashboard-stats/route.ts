@@ -5,7 +5,7 @@ import db from '@/lib/db';
 
 export async function GET() {
   try {
-    // 1. Fetch Stats for the Cards (No change here)
+    // 1. Fetch Stats for the Cards (No change)
     const userStatsQuery = db.query(`
       SELECT
         (SELECT COUNT(*) FROM users) AS total_users,
@@ -14,20 +14,21 @@ export async function GET() {
         (SELECT AVG(confidence) FROM data_records WHERE is_anomaly = true) AS avg_confidence
     `);
     
-    // 2. Fetch Data for Monthly Anomaly Chart (No change here)
+    // 2. Fetch Data for Monthly Activity Trends (FIXED)
+    // - Removed "WHERE record_date >= NOW()" so it finds your 2017-2025 data.
+    // - Orders by DESC to get the LATEST available data points.
     const monthlyChartQuery = db.query(`
       SELECT
         TO_CHAR(record_date, 'YYYY-MM') AS month_year,
         SUM(CASE WHEN is_anomaly = true THEN 1 ELSE 0 END) AS anomalies,
         SUM(CASE WHEN is_anomaly = false THEN 1 ELSE 0 END) AS normal
       FROM data_records
-      WHERE record_date >= NOW() - INTERVAL '6 months'
       GROUP BY month_year
-      ORDER BY month_year ASC
+      ORDER BY month_year DESC
       LIMIT 6
     `);
     
-    // --- 3. THIS IS THE NEW QUERY FOR THE PIE CHART ---
+    // 3. Fetch Data for Pie Chart (No change)
     const pieChartQuery = db.query(`
       SELECT 
         anomaly_reason, 
@@ -41,30 +42,29 @@ export async function GET() {
     const [
       userStatsResult, 
       monthlyChartResult,
-      pieChartResult // <-- Added
+      pieChartResult
     ] = await Promise.all([
       userStatsQuery,
       monthlyChartQuery,
-      pieChartQuery // <-- Added
+      pieChartQuery
     ]);
 
     const stats = userStatsResult.rows[0];
     
-    const formattedChartData = monthlyChartResult.rows.map(row => ({
-      month: new Date(row.month_year + '-02').toLocaleString('default', { month: 'short' }),
+    // --- FIX: FORMAT LABELS & ORDER ---
+    // 1. Reverse() so the chart reads Left-to-Right (Oldest -> Newest)
+    // 2. Format as "Jan 2017" so it is clearly Month + Year
+    const formattedChartData = monthlyChartResult.rows.reverse().map(row => ({
+      month: new Date(row.month_year + '-02').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
       anomalies: parseInt(row.anomalies, 10),
       normal: parseInt(row.normal, 10),
     }));
 
-    // --- Format the pie chart data ---
-    // The query returns { anomaly_reason: "Low Voltage", value: "35" }
-    // We just need to parse the value
     const pieChartData = pieChartResult.rows.map(row => ({
-      name: row.anomaly_reason, // <-- 'name' for the chart
-      value: parseInt(row.value, 10) // <-- 'value' for the chart
+      name: row.anomaly_reason,
+      value: parseInt(row.value, 10)
     }));
 
-    // 4. Combine all data into one response
     return NextResponse.json({
       stats: {
         totalUsers: stats.total_users || 0,
@@ -73,7 +73,7 @@ export async function GET() {
         detectionAccuracy: stats.avg_confidence ? (parseFloat(stats.avg_confidence) * 100).toFixed(1) : "0.0"
       },
       monthlyData: formattedChartData,
-      pieChartData: pieChartData, // <-- ADDED
+      pieChartData: pieChartData,
     });
 
   } catch (error) {

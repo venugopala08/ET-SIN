@@ -5,32 +5,33 @@ import db from '@/lib/db';
 
 const RECORDS_PER_PAGE = 15;
 
-// --- THIS GET FUNCTION IS NOW PAGINATED AND FIXES DUPLICATES ---
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const offset = (page - 1) * RECORDS_PER_PAGE;
 
-    // Query 1: Get the total count of all anomalies
+    // Query 1: Get total count
     const countQuery = db.query(
       `SELECT COUNT(*) FROM data_records WHERE is_anomaly = true`
     );
     
-    // Query 2: Get one page of anomalies, WITH user data
-    // --- THIS QUERY IS FIXED with a correct GROUP BY clause ---
+    // Query 2: Get anomalies
+    // --- FIX IS HERE ---
+    // We switched the order: COALESCE(d.village, u.address...)
+    // This forces it to use the CSV village (e.g. Aversa) first.
     const dataQuery = db.query(
       `
       SELECT
         d.id, d.rrno, d.record_date, d."Consumption", d."Voltage",
         d.confidence, d.status, d.anomaly_reason,
-        (array_agg(u.name))[1] AS name,
-        (array_agg(u.address))[1] AS address,
-        (array_agg(u.address))[1] AS village 
+        COALESCE((array_agg(u.name))[1], 'Unregistered Consumer') AS name,
+        COALESCE(d.village, (array_agg(u.address))[1], 'Unknown Location') AS address, 
+        COALESCE(d.village, (array_agg(u.address))[1], 'Unknown Village') AS village
       FROM data_records d
       LEFT JOIN users u ON d.rrno = u.rrno
       WHERE d.is_anomaly = true
-      GROUP BY d.id, d.rrno, d.record_date, d."Consumption", d."Voltage", d.confidence, d.status, d.anomaly_reason
+      GROUP BY d.id, d.rrno, d.record_date, d."Consumption", d."Voltage", d.confidence, d.status, d.anomaly_reason, d.village
       ORDER BY d.record_date DESC 
       LIMIT $1 OFFSET $2
       `,
@@ -54,19 +55,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// --- THIS POST FUNCTION REMAINS THE SAME ---
+// POST function stays the same
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { action, id, note, status } = body;
 
     if (action === 'update-status') {
-      const query = `
-        UPDATE data_records 
-        SET status = $1, is_anomaly = $2
-        WHERE id = $3
-        RETURNING *;
-      `;
+      const query = `UPDATE data_records SET status = $1, is_anomaly = $2 WHERE id = $3 RETURNING *;`;
       const values = [status, status !== 'normal', id];
       const { rows } = await db.query(query, values);
       return NextResponse.json({ success: true, anomaly: rows[0] });

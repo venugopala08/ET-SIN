@@ -1,18 +1,15 @@
-// FILE: app/api/user/[id]/complaints/[complaintId]/route.ts
-
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string; complaintId: string } }
+  props: { params: Promise<{ id: string; complaintId: string }> }
 ) {
   try {
-    const userId = params.id; // Get user ID from the URL
-    const complaintId = params.complaintId; // Get complaint ID from the URL
+    const params = await props.params;
+    const userId = params.id;
+    const complaintId = params.complaintId;
 
-    // This query is safer: it uses the userId from the URL to
-    // ensure a user can ONLY delete their own complaints.
     const deleteQuery = await db.query(
       `DELETE FROM complaints
        WHERE id = $1 AND user_id = $2
@@ -27,7 +24,6 @@ export async function DELETE(
       );
     }
 
-    // Success
     return NextResponse.json({ message: 'Complaint deleted successfully' });
 
   } catch (error) {

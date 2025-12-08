@@ -1,15 +1,14 @@
-// FILE: app/api/user/[id]/profile/route.ts
-
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
-// GET function to fetch user profile data
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await props.params;
     const userId = params.id;
+    
     const userQuery = await db.query(
       'SELECT name, email, rrno, address, phone_number FROM users WHERE id = $1',
       [userId]
@@ -26,23 +25,14 @@ export async function GET(
   }
 }
 
-// PATCH function to update user profile data
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
-    // --- FIX 1: Await the request body BEFORE accessing params ---
+    const params = await props.params;
+    const userId = params.id;
     const { name, email, address, phone } = await request.json();
-
-    // --- FIX 1 (Continued): Access params.id AFTER the first await ---
-    const userId = params.id; 
-
-    // --- FIX 2: Update the validation check ---
-    // We only require name, email, and phone. Address can be empty for admins.
-    if (!name || !email || !phone) {
-      return NextResponse.json({ error: 'Missing required fields: name, email, and phone are required.' }, { status: 400 });
-    }
 
     const updateQuery = await db.query(
       `UPDATE users

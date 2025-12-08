@@ -1,14 +1,13 @@
-// FILE: app/api/user/[id]/complaints/route.ts
-
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = params.id; // Get the user's ID from the URL
+    const params = await props.params;
+    const userId = params.id;
 
     const { rows } = await db.query(
       `SELECT * FROM complaints WHERE user_id = $1 ORDER BY created_at DESC`,

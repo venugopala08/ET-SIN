@@ -1,16 +1,16 @@
 // FILE: app/admin/analytics/page.tsx
 "use client"
 
-import { useMemo, useState, useEffect } from "react" // Import hooks
+import { useMemo, useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, ScatterChart, Scatter } from "recharts"
-import { BarChartIcon as ChartBar, Calendar } from 'lucide-react'
-import { Skeleton } from "@/components/ui/skeleton" // Import Skeleton
+import { BarChartIcon as ChartBar, Calendar, Activity } from 'lucide-react'
+import { Skeleton } from "@/components/ui/skeleton"
 
-// --- DEFINE TYPES FOR OUR DATA ---
+// Types matching the API response
 interface MonthlyConsumption {
   month: string;
   kwh: number;
@@ -34,14 +34,12 @@ export default function AnalyticsPage() {
   const [rrno, setRrno] = useState("all")
   const [season, setSeason] = useState("all")
 
-  // --- ADD STATE FOR LOADING AND DATA ---
   const [loading, setLoading] = useState(true);
   const [monthlyConsumption, setMonthlyConsumption] = useState<MonthlyConsumption[]>([]);
   const [anomaliesPerMonth, setAnomaliesPerMonth] = useState<AnomaliesPerMonth[]>([]);
   const [seasonHeat, setSeasonHeat] = useState<SeasonHeat[]>([]);
   const [pfBilling, setPfBilling] = useState<PfBilling[]>([]);
 
-  // --- ADD useEffect TO FETCH DATA ---
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
@@ -51,33 +49,33 @@ export default function AnalyticsPage() {
           throw new Error('Failed to fetch analytics data');
         }
         const data = await response.json();
-        setMonthlyConsumption(data.monthlyConsumption);
-        setAnomaliesPerMonth(data.anomaliesPerMonth);
-        setSeasonHeat(data.seasonHeat);
-        setPfBilling(data.pfBilling);
+        setMonthlyConsumption(data.monthlyConsumption || []);
+        setAnomaliesPerMonth(data.anomaliesPerMonth || []);
+        setSeasonHeat(data.seasonHeat || []);
+        setPfBilling(data.pfBilling || []);
       } catch (error) {
         console.error(error);
-        // You could add a toast here
       } finally {
         setLoading(false);
       }
     }
     fetchData();
-  }, []); // We can add filters here later if needed
+  }, []);
 
-  // --- PROCESS SEASON DATA FOR HEATMAP ---
+  // Process Heatmap Data (Updated Colors for "Suspicious" theme)
   const heatCells = useMemo(() => {
     const totalAnomalies = seasonHeat.reduce((acc, s) => acc + s.anomalies, 0);
     if (totalAnomalies === 0) {
-      return seasonHeat.map(s => ({ ...s, theftRate: 0, color: "bg-gray-500" }));
+      return seasonHeat.map(s => ({ ...s, rate: 0, color: "bg-gray-400" }));
     }
     
     return seasonHeat.map((s) => {
-      const theftRate = s.anomalies / totalAnomalies;
+      const rate = s.anomalies / totalAnomalies;
+      // Changed colors from Green/Red to Blue/Yellow/Orange
       return {
         ...s,
-        theftRate,
-        color: theftRate > 0.3 ? "bg-red-500" : theftRate > 0.22 ? "bg-yellow-500" : "bg-green-500",
+        rate,
+        color: rate > 0.3 ? "bg-orange-500" : rate > 0.22 ? "bg-yellow-500" : "bg-blue-400",
       }
     });
   }, [seasonHeat])
@@ -87,9 +85,10 @@ export default function AnalyticsPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground">Visualize trends and KPIs</p>
+          <p className="text-muted-foreground">Visualize trends, consumption patterns, and suspicious activities.</p>
         </div>
-        {/* These filters are not connected yet, they are for future improvement */}
+        
+        {/* Filters (Visual Only for Demo) */}
         <div className="grid gap-3 md:grid-cols-4">
           <div>
             <Label>Date Range</Label>
@@ -102,7 +101,7 @@ export default function AnalyticsPage() {
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="Ankola">Ankola</SelectItem>
-                <SelectItem value="Belambar">Belambar</SelectItem>
+                <SelectItem value="Aversa">Aversa</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -112,8 +111,6 @@ export default function AnalyticsPage() {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
-                <SelectItem value="RR1001">RR1001</SelectItem>
-                <SelectItem value="RR2002">RR2002</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -124,9 +121,7 @@ export default function AnalyticsPage() {
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="Winter">Winter</SelectItem>
-                <SelectItem value="Spring">Spring</SelectItem>
                 <SelectItem value="Summer">Summer</SelectItem>
-                <SelectItem value="Monsoon">Monsoon</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -140,7 +135,7 @@ export default function AnalyticsPage() {
               <Calendar className="h-5 w-5" />
               Monthly Consumption
             </CardTitle>
-            <CardDescription>Total kWh by month (Last 12 Months)</CardDescription>
+            <CardDescription>Total kWh recorded by month (Last 12 Months)</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -152,7 +147,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
-                  <Line type="monotone" dataKey="kwh" stroke="#3b82f6" strokeWidth={2} />
+                  <Line type="monotone" dataKey="kwh" stroke="#3b82f6" strokeWidth={2} name="Consumption (kWh)" />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -161,11 +156,12 @@ export default function AnalyticsPage() {
 
         <Card>
           <CardHeader>
+            {/* UPDATED TITLE */}
             <CardTitle className="flex items-center gap-2">
               <ChartBar className="h-5 w-5" />
-              Anomalies per Month
+              Suspicious Activity per Month
             </CardTitle>
-            <CardDescription>Detected anomalies by month (Last 12 Months)</CardDescription>
+            <CardDescription>Number of readings flagged for review</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -177,7 +173,8 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="anomalies" fill="#ef4444" />
+                  {/* UPDATED COLOR to Yellow/Orange */}
+                  <Bar dataKey="anomalies" fill="#eab308" name="Flagged Readings" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -188,8 +185,9 @@ export default function AnalyticsPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Season vs Anomaly Rate</CardTitle>
-            <CardDescription>Relative anomaly percentage by season</CardDescription>
+            {/* UPDATED TITLE */}
+            <CardTitle>Season vs Flagging Rate</CardTitle>
+            <CardDescription>Which seasons see the most suspicious behavior?</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -197,9 +195,10 @@ export default function AnalyticsPage() {
             ) : (
               <div className="grid grid-cols-4 gap-2">
                 {heatCells.map((c) => (
-                  <div key={c.season} className="p-3 rounded-md border text-white">
-                    <div className={`w-full h-16 rounded ${c.color}`} />
-                    <div className="mt-2 text-sm text-foreground">{c.season} — {(c.theftRate * 100).toFixed(0)}%</div>
+                  <div key={c.season} className="p-3 rounded-md border text-white bg-slate-900">
+                    <div className={`w-full h-16 rounded ${c.color} opacity-90`} />
+                    <div className="mt-2 text-sm text-center font-semibold">{c.season}</div>
+                    <div className="text-xs text-center text-gray-400">{(c.rate * 100).toFixed(0)}% of flags</div>
                   </div>
                 ))}
               </div>
@@ -209,8 +208,11 @@ export default function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Power Factor vs Billing (Scatter)</CardTitle>
-            <CardDescription>Distribution of bills vs PF (100 random samples)</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Power Factor vs Billing
+            </CardTitle>
+            <CardDescription>Correlation check (Sample of 100 records)</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -219,10 +221,10 @@ export default function AnalyticsPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <ScatterChart>
                   <CartesianGrid />
-                  <XAxis type="number" dataKey="pf" name="Power Factor" domain={[0.5, 1]} />
-                  <YAxis type="number" dataKey="billing" name="Billing (Est.)" />
+                  <XAxis type="number" dataKey="pf" name="Power Factor" domain={[0.5, 1]} label={{ value: 'Power Factor', position: 'bottom', offset: 0 }} />
+                  <YAxis type="number" dataKey="billing" name="Billing (Est.)" label={{ value: 'Bill Amount', angle: -90, position: 'left' }} />
                   <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-                  <Scatter data={pfBilling} fill="#a855f7" />
+                  <Scatter data={pfBilling} fill="#a855f7" name="Consumer Record" />
                 </ScatterChart>
               </ResponsiveContainer>
             )}

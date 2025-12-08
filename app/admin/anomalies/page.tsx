@@ -27,7 +27,7 @@ type Anomaly = {
   village?: string
   address?: string
   record_date: string
-  Consumption: number
+  Consumption: number // Capital C to match API
   Voltage: number
   status: "theft" | "suspicious" | "normal"
   confidence: number
@@ -110,7 +110,6 @@ export default function AnomaliesPage() {
     fetchAnomalies(currentPage);
   }, [currentPage, toast])
 
-  // When selected changes, fetch history
   useEffect(() => {
     if (selected?.rrno) {
       fetchHistory(selected.rrno);
@@ -123,8 +122,8 @@ export default function AnomaliesPage() {
   )
 
   const statusBadge = (s: Anomaly["status"]) =>
-    s === "theft" ? <Badge variant="destructive">Confirmed Theft</Badge> : // Changed from 'Theft'
-    s === "suspicious" ? <Badge className="bg-yellow-100 text-yellow-800">Flagged Suspicious</Badge> : // Changed
+    s === "theft" ? <Badge variant="destructive">Confirmed Theft</Badge> :
+    s === "suspicious" ? <Badge className="bg-yellow-100 text-yellow-800">Flagged Suspicious</Badge> :
     <Badge className="bg-green-100 text-green-800">Normal</Badge>
 
   const addNote = async () => {
@@ -175,7 +174,7 @@ export default function AnomaliesPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Anomaly Reports</h1>
           <p className="text-muted-foreground">
-            Investigating {totalRecords} total anomalies. Page {currentPage} of {totalPages}.
+            Investigating {totalRecords} suspicious readings. Page {currentPage} of {totalPages}.
           </p>
         </div>
         <Button variant="outline" onClick={exportListCsv}><Download className="h-4 w-4 mr-2" /> Export CSV</Button>
@@ -189,7 +188,7 @@ export default function AnomaliesPage() {
         <CardContent className="flex flex-wrap gap-2">
           <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>All</Button>
           <Button variant={filter === "suspicious" ? "default" : "outline"} onClick={() => setFilter("suspicious")}>Suspicious</Button>
-          <Button variant={filter === "theft" ? "default" : "outline"} onClick={() => setFilter("theft")}>Theft</Button>
+          <Button variant={filter === "theft" ? "default" : "outline"} onClick={() => setFilter("theft")}>Confirmed Theft</Button>
         </CardContent>
       </Card>
 
@@ -216,8 +215,10 @@ export default function AnomaliesPage() {
                 <TableRow key={a.id}>
                   <TableCell className="font-mono">{a.rrno}</TableCell>
                   <TableCell>{formatDate(a.record_date)}</TableCell>
+                  {/* Shows village from CSV if available, otherwise unknown */}
                   <TableCell>{a.village || 'Unknown'}</TableCell>
-                  <TableCell>{a.Consumption}</TableCell>
+                  {/* FIX: Handle null/0 consumption */}
+                  <TableCell>{a.Consumption !== null ? a.Consumption : 0}</TableCell>
                   <TableCell><Badge variant="outline">{a.anomaly_reason || 'N/A'}</Badge></TableCell>
                   <TableCell>{statusBadge(a.status)}</TableCell>
                   <TableCell>
@@ -247,7 +248,7 @@ export default function AnomaliesPage() {
         </Pagination>
       )}
 
-      {/* Detail Modal - NOW USING REAL DATA */}
+      {/* Detail Modal */}
       {selected && (
         <Card id="anomaly-detail" className="mt-6 border-2 border-primary">
           <CardHeader>
@@ -294,7 +295,7 @@ export default function AnomaliesPage() {
               )}
             </div>
 
-            {/* REAL METRICS (Replaced Fake SHAP) */}
+            {/* REAL METRICS */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="border rounded p-4 bg-muted/20">
                 <h4 className="font-medium mb-3 flex items-center gap-2"><Activity className="h-4 w-4" /> Key Metrics</h4>
@@ -305,11 +306,12 @@ export default function AnomaliesPage() {
                   </div>
                   <div className="flex justify-between">
                     <span>Consumption:</span>
-                    <span className="font-mono">{selected.Consumption} kWh</span>
+                    {/* FIX: Handle null/0 consumption */}
+                    <span className="font-mono">{selected.Consumption !== null ? selected.Consumption : 0} kWh</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Est. Bill:</span>
-                    <span className="font-mono">₹{(selected.Consumption * 10).toFixed(2)}</span>
+                    <span className="font-mono">₹{((selected.Consumption || 0) * 10).toFixed(2)}</span>
                   </div>
                 </div>
               </div>

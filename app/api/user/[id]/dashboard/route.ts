@@ -5,23 +5,27 @@ import db from '@/lib/db';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  // Fix 1: Change the type of params to Promise
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Fix 2: Await the params before using them
+    const params = await props.params;
     const userId = params.id;
 
     // 1. Get the user's RRNO and Name first
     const userQuery = await db.query('SELECT rrno, name FROM users WHERE id = $1', [
       userId,
     ]);
+    
     if (userQuery.rows.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    
     const rrno = userQuery.rows[0].rrno;
     const userName = userQuery.rows[0].name;
 
-    // 2. Run all other database queries IN PARALLEL
-    // This is much faster than running them one-by-one
+    // 2. Run all other database queries IN PARALLEL for speed
     const [
       totalConsumptionQuery,
       avgVoltageQuery,
@@ -51,20 +55,20 @@ export async function GET(
       )
     ]);
 
-    // 3. Process the results from the parallel queries
+    // 3. Process the results
     const totalConsumption = totalConsumptionQuery.rows[0]?.total_consumption || 0;
     const avgVoltage = avgVoltageQuery.rows[0]?.avg_voltage || 0;
     const pendingComplaints = pendingComplaintsQuery.rows[0]?.pending_complaints || 0;
     
     // Format chart data
-    const chartData = chartDataQuery.rows.map(row => ({
+    const chartData = chartDataQuery.rows.map((row: any) => ({
       ...row,
       total: parseFloat(row.total),
     }));
 
     // 4. Return all data at once
     return NextResponse.json({
-      welcomeName: userName, // Send the user's name
+      welcomeName: userName,
       totalConsumption: parseFloat(totalConsumption).toFixed(2),
       avgVoltage: parseFloat(avgVoltage).toFixed(2),
       pendingComplaints: parseInt(pendingComplaints),
