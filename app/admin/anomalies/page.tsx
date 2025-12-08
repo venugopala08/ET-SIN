@@ -123,8 +123,8 @@ export default function AnomaliesPage() {
   )
 
   const statusBadge = (s: Anomaly["status"]) =>
-    s === "theft" ? <Badge variant="destructive">Theft</Badge> :
-    s === "suspicious" ? <Badge className="bg-yellow-100 text-yellow-800">Suspicious</Badge> :
+    s === "theft" ? <Badge variant="destructive">Confirmed Theft</Badge> : // Changed from 'Theft'
+    s === "suspicious" ? <Badge className="bg-yellow-100 text-yellow-800">Flagged Suspicious</Badge> : // Changed
     <Badge className="bg-green-100 text-green-800">Normal</Badge>
 
   const addNote = async () => {

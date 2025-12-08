@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { Check, Trash2, ListChecks } from 'lucide-react' // <-- Import Trash2
+import { Check, Trash2, ListChecks } from 'lucide-react' // <-- Added Trash2
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog" // <-- Import AlertDialog
+} from "@/components/ui/alert-dialog" // <-- Added Alert Dialog
 
 interface Complaint {
   id: number;
@@ -27,7 +27,7 @@ interface Complaint {
   description: string;
   status: 'submitted' | 'resolved';
   created_at: string;
-  name: string; // From the JOIN
+  name: string;
 }
 
 export default function AdminComplaintsPage() {
@@ -38,18 +38,12 @@ export default function AdminComplaintsPage() {
   const fetchComplaints = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/complaints'); // Admin API to get all complaints
-      if (!response.ok) {
-        throw new Error('Failed to fetch complaints');
-      }
+      const response = await fetch('/api/complaints');
+      if (!response.ok) throw new Error('Failed to fetch complaints');
       const data = await response.json();
       setComplaints(data.complaints || []);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: error.message, variant: "destructive" })
     } finally {
       setLoading(false);
     }
@@ -57,68 +51,44 @@ export default function AdminComplaintsPage() {
 
   useEffect(() => {
     fetchComplaints();
-  }, [toast]); // <-- Added toast to dependency array
+  }, [toast]);
 
   const handleMarkResolved = async (id: number) => {
     try {
-      // Admin API to update a specific complaint
       const response = await fetch(`/api/complaints/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'resolved' }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update status');
-      }
+      if (!response.ok) throw new Error('Failed to update status');
 
-      toast({
-        title: "Status Updated",
-        description: "Complaint marked as resolved.",
-      })
-      fetchComplaints(); // Refresh the list
+      toast({ title: "Status Updated", description: "Complaint marked as resolved." })
+      fetchComplaints();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: error.message, variant: "destructive" })
     }
   }
 
-  // --- THIS IS THE NEW DELETE FUNCTION ---
-  const handleDeleteComplaint = async (id: number) => {
+  // --- NEW DELETE FUNCTION ---
+  const handleDelete = async (id: number) => {
     try {
-      // This calls the admin DELETE API route
       const response = await fetch(`/api/complaints/${id}`, {
         method: 'DELETE',
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to delete complaint');
-      }
+      if (!response.ok) throw new Error('Failed to delete complaint');
 
-      toast({
-        title: "Complaint Deleted",
-        description: "The complaint has been permanently removed.",
-      })
-      fetchComplaints(); // Refresh the list
+      toast({ title: "Deleted", description: "Complaint removed successfully." })
+      fetchComplaints(); // Refresh list
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: error.message, variant: "destructive" })
     }
   }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      year: 'numeric', month: 'short', day: 'numeric'
     });
   }
 
@@ -130,9 +100,7 @@ export default function AdminComplaintsPage() {
             <ListChecks className="h-5 w-5" />
             Manage Complaints
           </CardTitle>
-          <CardDescription>
-            Review and resolve user-submitted complaints
-          </CardDescription>
+          <CardDescription>Review and resolve user-submitted complaints</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -148,19 +116,17 @@ export default function AdminComplaintsPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center h-24">Loading complaints...</TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center h-24">Loading...</TableCell></TableRow>
               ) : complaints.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center h-24">No complaints found.</TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center h-24">No complaints found.</TableCell></TableRow>
               ) : (
                 complaints.map((complaint) => (
                   <TableRow key={complaint.id}>
                     <TableCell>{complaint.name}</TableCell>
                     <TableCell>{complaint.subject}</TableCell>
-                    <TableCell className="max-w-xs truncate">{complaint.description}</TableCell>
+                    <TableCell className="max-w-xs truncate" title={complaint.description}>
+                      {complaint.description}
+                    </TableCell>
                     <TableCell>{formatDate(complaint.created_at)}</TableCell>
                     <TableCell>
                       <Badge variant={complaint.status === 'resolved' ? 'default' : 'secondary'}>
@@ -170,44 +136,37 @@ export default function AdminComplaintsPage() {
                     <TableCell>
                       <div className="flex gap-2">
                         {complaint.status === 'submitted' && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleMarkResolved(complaint.id)}
-                          >
+                          <Button variant="outline" size="sm" onClick={() => handleMarkResolved(complaint.id)}>
                             <Check className="h-4 w-4" />
                           </Button>
                         )}
                         
-                        {/* --- THIS IS THE NEW DELETE BUTTON --- */}
+                        {/* --- DELETE BUTTON --- */}
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button 
-                              variant="destructive" 
-                              size="sm"
-                            >
+                            <Button variant="destructive" size="sm">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogTitle>Delete Complaint?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will permanently delete the complaint "{complaint.subject}". 
-                                This action cannot be undone.
+                                This action cannot be undone. This will permanently delete the complaint about "{complaint.subject}".
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction 
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={() => handleDeleteComplaint(complaint.id)}
+                                onClick={() => handleDelete(complaint.id)}
                               >
                                 Delete
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
+
                       </div>
                     </TableCell>
                   </TableRow>
