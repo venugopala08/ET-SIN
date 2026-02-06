@@ -1,12 +1,13 @@
 // FILE: lib/db.ts
 import { Pool } from 'pg';
 
+const isSupabase = process.env.DATABASE_URL?.includes('supabase.co');
+
 const db = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Fix: Enable SSL for deployment (Vercel/Supabase), but keep it optional for localhost if needed
-  ssl: process.env.NODE_ENV === 'production' 
-    ? { rejectUnauthorized: false } 
-    : undefined,
+  ssl: isSupabase 
+    ? { rejectUnauthorized: false } // Force SSL for Supabase (Local & Prod)
+    : undefined,                    // No SSL for local Postgres
 });
 
 export default db;
