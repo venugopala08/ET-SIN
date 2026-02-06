@@ -5,6 +5,7 @@ import pickle
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
+CORS(app)
 
 # Load your model
 try:
